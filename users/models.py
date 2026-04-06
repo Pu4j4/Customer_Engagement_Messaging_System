@@ -70,7 +70,17 @@ class Contact(models.Model):
 class MessageLog(models.Model):
     campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE)
     contact = models.ForeignKey(Contact, on_delete=models.CASCADE)
-    status = models.CharField(max_length=50)
+
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("pending", "Pending"),
+            ("sent", "Sent"),
+            ("failed", "Failed"),
+        ],
+        default="pending"
+    )
+
     error_message = models.CharField(max_length=255, null=True, blank=True)
     sent_at = models.DateTimeField(auto_now_add=True)
 
