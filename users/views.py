@@ -219,3 +219,71 @@ def upload_contacts(request):
         })
 
     return JsonResponse({"error": "POST required"})
+
+
+from .models import MessageLog
+from .tasks import process_messages_task
+
+@csrf_exempt
+@login_required
+def send_campaign(request, campaign_id):
+
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+
+    campaign = Campaign.objects.get(id=campaign_id, user=request.user)
+    contacts = Contact.objects.filter(user=request.user)
+
+    for contact in contacts:
+        MessageLog.objects.create(
+            campaign=campaign,
+            contact=contact,
+            status="pending"
+        )
+
+    # 🚀 Trigger background task
+    process_messages_task.delay()
+
+    return JsonResponse({
+        "message": "Campaign queued and processing started"
+    })
+
+
+import random
+
+@csrf_exempt
+@login_required
+def process_messages(request):
+
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+
+    logs = MessageLog.objects.filter(status="pending")
+
+    processed = 0
+
+    for log in logs:
+
+        try:
+            # Simulate sending message
+            print(f"Sending to {log.contact.phone}")
+
+            # Random success/failure (simulate real API)
+            if random.choice([True, False]):
+                log.status = "sent"
+            else:
+                log.status = "failed"
+                log.error_message = "Network error"
+
+            log.save()
+            processed += 1
+
+        except Exception as e:
+            log.status = "failed"
+            log.error_message = str(e)
+            log.save()
+
+    return JsonResponse({
+        "message": "Messages processed",
+        "total_processed": processed
+    })
